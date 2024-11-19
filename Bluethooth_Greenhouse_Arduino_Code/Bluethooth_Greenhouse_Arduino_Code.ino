@@ -92,43 +92,52 @@ void setup() {
 }
 
 void loop() {
+  unsigned long currentMillis = millis();
+  static unsigned long lastUpdateMillis = 0;
+
+  // Lee el Bluetooth si está disponible
   hc05_read();
+
+  // Controla temperatura
   temperatura_objetivo = temp_des;
   control_temperature(read_temperature_level);
 
-  if (ilum_mode == 1) { //Si modo automatico activo
-    control_light(read_light_level); // Controla la luz usando el valor de luminosidad leído
-  }
-  else if (ilum_mode == 0) { //Si modo automatico desactivado
-    if (ilum_state == 0) {
-      apagar_led;
-      led_state = 0;
-    } else {
-      encender_led;
-      led_state = 1;
-    }
+  // Control de iluminación
+  if (ilum_mode == 1) {
+    control_light(read_light_level);
+  } else {
+    led_state = ilum_state;
+    digitalWrite(pin_led, ilum_state ? HIGH : LOW);
   }
 
-  if (riego_mode == 1) { //Si modo automatico activo
+  // Control de riego
+  if (riego_mode == 1) {
     control_humidity(read_humidity_level);
-  } else apagar_bomba;
-
-  if (riego_state != anterior_riego_state) {
-    anterior_riego_state = riego_state;
-    encender_bomba;
-    delay(tiempo_de_riego);
+  } else {
     apagar_bomba;
   }
 
-  int humedad_send = (int) ((read_humidity_level() * 100 /  (_100_humedo)));
-  bool iluminacion_send = led_state;
-  float temperatura_send = read_temperature_level();
-  String message = (String) humedad_send + "," + iluminacion_send + "," + temperatura_send;
-  //Serial.println(read_humidity_level());
-  invernadero.print(message);
-  Serial.println(message);
-  delay(500);
+  // Maneja riego instantáneo
+  if (riego_state != anterior_riego_state) {
+    anterior_riego_state = riego_state;
+    encender_bomba;
+    delay(tiempo_de_riego); // Reemplazar con millis si es necesario evitar bloqueo
+    apagar_bomba;
+  }
+
+  // Envía datos por Bluetooth cada 500ms
+  if (currentMillis - lastUpdateMillis >= 500) {
+    lastUpdateMillis = currentMillis;
+    int humedad_send = (int)((read_humidity_level() * 100) / _100_humedo);
+    bool iluminacion_send = led_state;
+    float temperatura_send = read_temperature_level();
+    String message = String(humedad_send) + "," + iluminacion_send + "," + temperatura_send;
+
+    invernadero.print(message);
+    Serial.println(message);
+  }
 }
+
 
 
 
@@ -213,21 +222,17 @@ void control_temperature(float (*temperature)()) { //Funcion que toma deciciones
 
 
 void hc05_read(void) {
-  if (invernadero.available() > 0) { //Si llega un mensaje del celular
-      data_recibed = invernadero.readString(); //Se lee el mensaje
-      if (data_recibed.startsWith("<")) { //Solo se activa si biene codificada el mensaje: <temp_des,ilum_mode,riego_mode,ilum_state,riego_state>
-          data_recibed.remove(0,1); //Remueve el <
-          temp_des=(data_recibed.toInt()); //Lee la temperatura deseada
-          data_recibed.remove(0,((data_recibed.indexOf(","))+1)); //Remueve el temp_des y la ,
-          ilum_mode=(data_recibed.toInt()); //Lee el modo de iluminacion
-          data_recibed.remove(0,((data_recibed.indexOf(","))+1)); //Remueve el ilum_mode y la ,
-          riego_mode=(data_recibed.toInt()); //Lee el modo de riego
-          data_recibed.remove(0,((data_recibed.indexOf(","))+1)); //Remueve el riego_mode y la ,
-          ilum_state=(data_recibed.toInt()); //Lee el estado de la iluminacion
-          data_recibed.remove(0,((data_recibed.indexOf(","))+1)); //Remueve el ilum_state y la ,
-          riego_state=(data_recibed.toInt()); //Lee el estado del riego
-          data_recibed.remove(0,((data_recibed.indexOf(">"))+1)); //Remueve el riego_state y el >
-      }
-      Serial.println((String) temp_des+"-"+ilum_mode+"-"+riego_mode+"-"+ilum_state+"-"+riego_state);
-  }
+    if (invernadero.available() > 0) {
+        data_recibed = invernadero.readString();
+        if (data_recibed.startsWith("<")) {
+            int parsedTemp, parsedIlumMode, parsedRiegoMode, parsedIlumState, parsedRiegoState;
+            sscanf(data_recibed.c_str(), "<%d,%d,%d,%d,%d>", &parsedTemp, &parsedIlumMode, &parsedRiegoMode, &parsedIlumState, &parsedRiegoState);
+            temp_des = parsedTemp;
+            ilum_mode = parsedIlumMode;
+            riego_mode = parsedRiegoMode;
+            ilum_state = parsedIlumState;
+            riego_state = parsedRiegoState;
+        }
+    }
 }
+
