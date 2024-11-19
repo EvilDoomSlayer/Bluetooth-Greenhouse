@@ -20,33 +20,22 @@
 // Librerias
 #include <SoftwareSerial.h>
 
-
-// Prototipos de funciones
-void ports_init(void);
-float read_light_level(void);
-void control_light(float (*get_voltage)());
-float read_humidity_level(void);
-void control_humidity(float (*humidity_voltage)());
-float read_temperature_level(void);
-void control_temperature(float (*temperature)());
-
 // Definición de pines
-#define pin_foco 9            // Pin del foco
-#define pin_abanico 8         // Pin del abanico
-#define pin_lm35 A0            // Pin de lectura del sensor de temperatura
-#define pin_bomba 10            // Pin de control de la bomba
-#define pin_ldr A1             // Pin de lectura de la fotoresistencia
-#define pin_led 11             // Pin de control de LEDs
-#define pin_humedad A2         // Pin de lectura del sensor de humedad
+#define pin_foco 9            
+#define pin_abanico 8         
+#define pin_lm35 A0            
+#define pin_bomba 10            
+#define pin_ldr A1             
+#define pin_led 11             
+#define pin_humedad A2         
 #define hc05_rx 12
 #define hc05_tx 13
 
 // Variables globales
-//Voltaje de referencia para conversion a voltaje
 #define VREF 5.0 // Voltaje de referencia
 
 // Temperatura
-float temperatura_objetivo;      // Temperatura deseada en la incubadora
+float temperatura_objetivo;      // Temperatura deseada en el invernadero
 float temperatura_actual;              // Variable para almacenar la temperatura en grados
 
 // Luz
@@ -63,10 +52,10 @@ SoftwareSerial invernadero(hc05_rx, hc05_tx); 	// pin 12 como RX, pin 13 como TX
 String data_recibed; //Variable donde se guardaran los datos recibidos del celular
 
 // Datos enviados de la app al Arduino
-float temp_des = 30.0; //Temperatura deseada
+float temp_des = 30.0; 
 int ilum_mode = 1; //Modo automático o manual del control de la iluminacion
 int riego_mode = 1; //Modo automático o manual del control de la humedad
-int ilum_state; //Estado de la iluminacion
+int ilum_state; 
 int riego_state; //Activar o no activar el riego instantaneo
 int anterior_riego_state;  // Variable que guarda el estado de riego enviado por ultima vez al arduino
 
@@ -84,11 +73,21 @@ int anterior_riego_state;  // Variable que guarda el estado de riego enviado por
 #define apagar_led        digitalWrite(pin_led, LOW)
 
 
+// Prototipos de funciones
+void ports_init(void);
+float read_light_level(void);
+void control_light(float (*get_voltage)());
+float read_humidity_level(void);
+void control_humidity(float (*humidity_voltage)());
+float read_temperature_level(void);
+void control_temperature(float (*temperature)());
+
+
 
 void setup() {
   Serial.begin(9600);
   ports_init();
-  invernadero.begin(38400); 	// se inicia la velocidad de comunicacion del HC-05
+  invernadero.begin(38400); 	// Se inicia la velocidad de comunicacion del HC-05
   encender_abanico;
 }
 
@@ -98,29 +97,27 @@ void loop() {
   control_temperature(read_temperature_level);
 
   if (ilum_mode == 1) { //Si modo automatico activo
-      control_light(read_light_level); // Controla la luz usando el valor de luminosidad leído
+    control_light(read_light_level); // Controla la luz usando el valor de luminosidad leído
   }
   else if (ilum_mode == 0) { //Si modo automatico desactivado
-      if (ilum_state == 0) {
-          apagar_led;
-          led_state = 0;
-      }
-      else {
-          encender_led;
-          led_state = 1;
-      }
+    if (ilum_state == 0) {
+      apagar_led;
+      led_state = 0;
+    } else {
+      encender_led;
+      led_state = 1;
+    }
   }
 
   if (riego_mode == 1) { //Si modo automatico activo
-      control_humidity(read_humidity_level);
-  }
-  else apagar_bomba;
+    control_humidity(read_humidity_level);
+  } else apagar_bomba;
 
   if (riego_state != anterior_riego_state) {
-      anterior_riego_state = riego_state;
-      encender_bomba;
-      delay(tiempo_de_riego);
-      apagar_bomba;
+    anterior_riego_state = riego_state;
+    encender_bomba;
+    delay(tiempo_de_riego);
+    apagar_bomba;
   }
 
   int humedad_send = (int) ((read_humidity_level() * 100 /  (_100_humedo)));
@@ -137,7 +134,6 @@ void loop() {
 
 
 void ports_init(void) {
-  // Inicialización de pines
   // Temperatura
   pinMode(pin_foco, OUTPUT);
   pinMode(pin_abanico, OUTPUT);
@@ -154,24 +150,22 @@ void ports_init(void) {
 
 
 
-
-
 float read_light_level(void) {
-    // Lee y convierte el valor de la fotoresistencia en voltaje
-    float lectura_ldr = analogRead(pin_ldr);
-    float voltage = 5.0 - ((lectura_ldr / 1023.0) * VREF);
-    return voltage;
+  // Lee y convierte el valor de la fotoresistencia en voltaje
+  float lectura_ldr = analogRead(pin_ldr);
+  float voltage = 5.0 - ((lectura_ldr / 1023.0) * VREF);
+  return voltage;
 }
 
 void control_light(float (*ldr_voltage)()) { 
-    float voltage = ldr_voltage();
-    if (voltage >= nivel_luz_minimo) { // Si el voltaje es suficiente, enciende el LED
-        encender_led;
-        led_state = 1;
-    } else { // Si el voltaje es menor al nivel mínimo, apaga el LED
-        apagar_led;
-        led_state = 0;
-    }
+  float voltage = ldr_voltage();
+  if (voltage >= nivel_luz_minimo) { // Si el voltaje es suficiente, enciende el LED
+      encender_led;
+      led_state = 1;
+  } else { // Si el voltaje es menor al nivel mínimo, apaga el LED
+      apagar_led;
+      led_state = 0;
+  }
 }
 
 
@@ -187,11 +181,11 @@ float read_humidity_level(void) {
 
 void control_humidity(float (*humidity_voltage)()) { 
   float voltage = humidity_voltage();
-  if (voltage < nivel_humedad_minimo){ //Si la humedad en la tierra es baja:
-      encender_bomba; //Se enciende la bomba
+  if (voltage < nivel_humedad_minimo){ //Si la humedad en la tierra es menor:
+      encender_bomba; 
   }
-  else { //Si no es menor la humedad, por lo tanto es mayor:
-      apagar_bomba; //Se apaga la bomba
+  else { //Si la humedad en la tierra mayor:
+      apagar_bomba; 
   }
 }
 
@@ -208,11 +202,11 @@ float read_temperature_level(void) {
 
 void control_temperature(float (*temperature)()) { //Funcion que toma deciciones respecto a la temperatura medida
   float temp = temperature();
-  if (temp < temperatura_objetivo){ //Si la temperatura promedio de la incubadora es menor que la que debe de ser:
-      encender_foco; //Se enciende el foco
+  if (temp < temperatura_objetivo){ //Si la temperatura promedio del invernadero es menor al objetivo:
+      encender_foco;
   }
-  else { //Si no es menor la temperatura promedio, por lo tanto es mayor:
-      apagar_foco; //Se apaga el foco
+  else { //Si la temperatura promedio del invernadero es mayor al objetivo:
+      apagar_foco; 
   }
 }
 
