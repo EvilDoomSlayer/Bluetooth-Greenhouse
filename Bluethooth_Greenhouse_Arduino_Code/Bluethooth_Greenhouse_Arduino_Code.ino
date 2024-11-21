@@ -211,7 +211,7 @@ float read_temperature_level(void) {
 
 void control_temperature(float (*temperature)()) { //Funcion que toma deciciones respecto a la temperatura medida
   float temp = temperature();
-  if (temp < temperatura_objetivo){ //Si la temperatura promedio del invernadero es menor al objetivo:
+  if (temp < temperatura_objetivo){ //Si la temperatura del invernadero es menor al objetivo:
       encender_foco;
   }
   else { //Si la temperatura promedio del invernadero es mayor al objetivo:
